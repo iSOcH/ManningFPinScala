@@ -10,6 +10,7 @@ object List {
   def apply[A](as: A*): List[A] = // Variadic function syntax
     if (as.isEmpty) Nil
     else Cons(as.head, apply(as.tail: _*))
+
   def sum(ints: List[Int]): Int = ints match { // A function that uses pattern matching to add up a list of integers
     case Nil => 0 // The sum of the empty list is 0.
     case Cons(x,xs) => x + sum(xs) // The sum of a list starting with `x` is `x` plus the sum of the rest of the list.
@@ -20,6 +21,15 @@ object List {
     case Cons(0.0, _) => 0.0
     case Cons(x,xs) => x * product(xs)
   }
+
+  def foldRight[A,B](as: List[A], z: B)(f: (A, B) => B): B = as match {
+    case Nil => z
+    case Cons(x, xs) => f(x, foldRight(xs, z)(f))
+  }
+
+  def sum2(ns: List[Int]) = foldRight(ns, 0)((x,y) => x + y)
+
+  def product2(ns: List[Double]) = foldRight(ns, 1.0)(_ * _)
 }
 
 object ex03_01_Match {
@@ -82,5 +92,63 @@ object ex03_06_Init {
     }
 
     reverse(loop(l, Nil), Nil)
+  }
+}
+
+object ex03_07_FoldRShortcircuitProduct {
+  // does not work, because foldRight recurses before f is applied
+
+  // non-FP:
+  def productUgly(l: List[Int]): Int = {
+    object Annihilation extends Exception
+
+    def multOrFail(a: Int, b: Int): Int = {
+      if (a == 0 || b == 0) throw Annihilation
+      else a * b
+    }
+
+    try {
+      List.foldRight(l, 1)(multOrFail)
+    } catch {
+      case Annihilation => 0
+    }
+  }
+}
+
+object ex03_08_NilConsFoldR {
+  val tryThis: List[Int] = List.foldRight(Cons(1,Cons(2,Cons(3,Nil))), Nil:List[Int])(Cons(_,_))
+}
+
+object ex03_09_LengthFold {
+  def length[A](as: List[A]): Int = {
+    List.foldRight(as, 0){case (_, n:Int) => n + 1}
+  }
+}
+
+object ex03_10_FoldLeft {
+  @tailrec
+  def foldLeft[A,B](as: List[A], z: B)(f: (B, A) => B): B = as match {
+    case Nil => z
+    case Cons(x, xs) => foldLeft(xs, f(z, x))(f)
+  }
+}
+
+object ex03_11_FoldLeftUsage {
+  def sum(as: List[Int]) = ex03_10_FoldLeft.foldLeft(as, 0)(_ + _)
+  def product(as: List[Int]) = ex03_10_FoldLeft.foldLeft(as, 1)(_ * _)
+  def length[A](as: List[A]) = ex03_10_FoldLeft.foldLeft(as, 0)((n, _) => n + 1)
+}
+
+object ex03_12_Reverse {
+  def reverse[A](as: List[A]) = ex03_10_FoldLeft.foldLeft(as, Nil:List[A]){(acc, l) => Cons(l, acc)}
+}
+
+object ex03_13_FoldInTermsOfEachother {
+  def foldRight[A,B](as: List[A], z: B)(f: (A,B) => B) = {
+    ex03_10_FoldLeft.foldLeft(ex03_12_Reverse.reverse(as), z)((b,a) => f(a,b))
+  }
+
+  def foldLeft[A,B](as: List[A], z: B)(f: (B,A) => B) = {
+    ??? // TODO
   }
 }
