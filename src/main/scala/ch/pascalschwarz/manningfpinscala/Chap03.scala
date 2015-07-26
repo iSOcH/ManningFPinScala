@@ -3,27 +3,27 @@ package ch.pascalschwarz.manningfpinscala
 import scala.annotation.tailrec
 
 sealed trait BookList[+A]
-case object Nil extends BookList[Nothing]
+case object BNil extends BookList[Nothing]
 case class Cons[+A](head: A, tail: BookList[A]) extends BookList[A]
 
 object BookList {
   def apply[A](as: A*): BookList[A] = // Variadic function syntax
-    if (as.isEmpty) Nil
+    if (as.isEmpty) BNil
     else Cons(as.head, apply(as.tail: _*))
 
   def sum(ints: BookList[Int]): Int = ints match { // A function that uses pattern matching to add up a list of integers
-    case Nil => 0 // The sum of the empty list is 0.
+    case BNil => 0 // The sum of the empty list is 0.
     case Cons(x,xs) => x + sum(xs) // The sum of a list starting with `x` is `x` plus the sum of the rest of the list.
   }
 
   def product(ds: BookList[Double]): Double = ds match {
-    case Nil => 1.0
+    case BNil => 1.0
     case Cons(0.0, _) => 0.0
     case Cons(x,xs) => x * product(xs)
   }
 
   def foldRight[A,B](as: BookList[A], z: B)(f: (A, B) => B): B = as match {
-    case Nil => z
+    case BNil => z
     case Cons(x, xs) => f(x, foldRight(xs, z)(f))
   }
 
@@ -35,7 +35,7 @@ object BookList {
 object ex03_01_Match {
   val l = BookList(1,2,3,4,5) match {
     case Cons(x, Cons(2, Cons(4, _))) => x // won't match, because after 2 comes 3
-    case Nil => 42 // list is not empty
+    case BNil => 42 // list is not empty
     case Cons(x, Cons(y, Cons(3, Cons(4, _)))) => x + y // should match, result 3
     case Cons(h, t) => h + BookList.sum(t) // would match, but after another matching case
     case _ => 101 // would match, but after another matching case
@@ -45,7 +45,7 @@ object ex03_01_Match {
 object ex03_02_Tail {
   def tail[A](l: BookList[A]) = l match {
     case Cons(_, t) => t
-    case _ => Nil // other possibility: throw ... simplest way: no case for Nil
+    case _ => BNil // other possibility: throw ... simplest way: no case for Nil
   }
 }
 
@@ -71,27 +71,27 @@ object ex03_05_DropWhile {
 
 object ex03_06_Init {
   def initSlow[A](l: BookList[A]): BookList[A] = l match {
-    case Cons(h, Cons(_, Nil)) => Cons(h, Nil)
+    case Cons(h, Cons(_, BNil)) => Cons(h, BNil)
     case Cons(h, t) => Cons(h, init(t))
-    case Nil => Nil
+    case BNil => BNil
   }
 
   // solution uses listbuffer - more efficient, but needs sideeffects
   def init[A](l: BookList[A]): BookList[A] = {
     @tailrec
     def loop(list: BookList[A], acc: BookList[A]): BookList[A] = list match {
-      case Nil => acc
-      case Cons(h, Cons(m, Nil)) => loop(Nil, Cons(h, acc))
+      case BNil => acc
+      case Cons(h, Cons(m, BNil)) => loop(BNil, Cons(h, acc))
       case Cons(h, t) => loop(t, Cons(h,acc))
     }
 
     @tailrec
     def reverse(toRev: BookList[A], acc: BookList[A]): BookList[A] = toRev match {
-      case Nil => acc
+      case BNil => acc
       case Cons(h, t) => reverse(t, Cons(h, acc))
     }
 
-    reverse(loop(l, Nil), Nil)
+    reverse(loop(l, BNil), BNil)
   }
 }
 
@@ -118,7 +118,7 @@ object ex03_07_FoldRShortcircuitProduct {
 }
 
 object ex03_08_NilConsFoldR {
-  val tryThis: BookList[Int] = BookList.foldRight(Cons(1,Cons(2,Cons(3,Nil))), Nil:BookList[Int])(Cons(_,_))
+  val tryThis: BookList[Int] = BookList.foldRight(Cons(1,Cons(2,Cons(3,BNil))), BNil:BookList[Int])(Cons(_,_))
 }
 
 object ex03_09_LengthFold {
@@ -130,7 +130,7 @@ object ex03_09_LengthFold {
 object ex03_10_FoldLeft {
   @tailrec
   def foldLeft[A,B](as: BookList[A], z: B)(f: (B, A) => B): B = as match {
-    case Nil => z
+    case BNil => z
     case Cons(x, xs) => foldLeft(xs, f(z, x))(f)
   }
 }
@@ -142,7 +142,7 @@ object ex03_11_FoldLeftUsage {
 }
 
 object ex03_12_Reverse {
-  def reverse[A](as: BookList[A]) = ex03_10_FoldLeft.foldLeft(as, Nil:BookList[A]){(acc, l) => Cons(l, acc)}
+  def reverse[A](as: BookList[A]) = ex03_10_FoldLeft.foldLeft(as, BNil:BookList[A]){(acc, l) => Cons(l, acc)}
 }
 
 object ex03_13_FoldInTermsOfEachother {
@@ -166,14 +166,14 @@ object ex03_15_Concat {
   def apply[A](ls: BookList[BookList[A]]): BookList[A] = {
     import ex03_13_FoldInTermsOfEachother.{foldRight => foldR}
     import ex03_14_Append.{apply => append}
-    foldR(ls, Nil: BookList[A])(append)
+    foldR(ls, BNil: BookList[A])(append)
   }
 }
 
 object ex03_16_MapPlus1 {
   def apply(ls: BookList[Int]): BookList[Int] = {
     import ex03_13_FoldInTermsOfEachother.{foldRight => foldR}
-    foldR(ls, Nil: BookList[Int])((n, l) => Cons(n+1, l))
+    foldR(ls, BNil: BookList[Int])((n, l) => Cons(n+1, l))
   }
 }
 
@@ -187,7 +187,7 @@ object ex03_18_Map {
 
     @tailrec
     def loop(l: BookList[A]): Unit = l match {
-      case Nil => ()
+      case BNil => ()
       case Cons(h, t) => {
         buf += f(h)
         loop(t)
@@ -202,7 +202,7 @@ object ex03_19_Filter {
   def apply[A](l: BookList[A])(p: A => Boolean): BookList[A] = {
     // same problem as Map, this time using foldR (no specific reason)
     import ex03_13_FoldInTermsOfEachother.{foldRight => foldR}
-    foldR(l, Nil: BookList[A]){(e, newlist) => if (p(e)) Cons(e, newlist) else newlist}
+    foldR(l, BNil: BookList[A]){(e, newlist) => if (p(e)) Cons(e, newlist) else newlist}
   }
 }
 
@@ -211,14 +211,14 @@ object ex03_20_FlatMap {
     import ex03_13_FoldInTermsOfEachother.{foldRight => foldR}
     import ex03_14_Append.{apply => append}
 
-    foldR(l, Nil: BookList[B]){(e, res) => append(f(e), res)}
+    foldR(l, BNil: BookList[B]){(e, res) => append(f(e), res)}
   }
 }
 
 object ex03_21_FilterUsingFlatMap {
   def apply[A](l: BookList[A])(p: A => Boolean): BookList[A] = {
     import ex03_20_FlatMap.{apply => flatMap}
-    flatMap(l)(e => if (p(e)) BookList(e) else Nil)
+    flatMap(l)(e => if (p(e)) BookList(e) else BNil)
   }
 }
 
@@ -259,8 +259,8 @@ object ex03_23_ZipWith {
 
     @tailrec
     def loop(xs: BookList[A], ys:BookList[B]): Unit = (xs, ys) match {
-      case (Nil, _) => ()
-      case (_, Nil) => ()
+      case (BNil, _) => ()
+      case (_, BNil) => ()
       case (Cons(x, xs), Cons(y, ys)) => {
         buf += f(x,y)
         loop(xs, ys)

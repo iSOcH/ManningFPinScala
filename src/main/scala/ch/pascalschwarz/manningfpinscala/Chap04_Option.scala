@@ -39,9 +39,9 @@ object ex04_02_Variance {
 }
 
 object ex04_03_Map2 {
-  def apply[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = (a,b) match {
-    case (Some(x), Some(y)) => Some(f(x,y))
-    case _ => None
+  def apply[A,B,C](a: BOption[A], b: BOption[B])(f: (A, B) => C): BOption[C] = (a,b) match {
+    case (BSome(x), BSome(y)) => BSome(f(x,y))
+    case _ => BNone
   }
 }
 
@@ -57,4 +57,18 @@ object ex04_04_Sequence {
 
     loop(a, List[A]()).map(_.reverse)
   }
+}
+
+object ex04_05_Traverse {
+  def apply[A, B](a: List[A])(f: A => BOption[B]): BOption[List[B]] = a match {
+    case h :: t => ex04_03_Map2(f(h), apply(t)(f))(_ :: _)
+    case Nil => BSome(Nil)
+  }
+
+  def usingFoldR[A, B](a: List[A])(f: A => BOption[B]): BOption[List[B]] = {
+    //a.foldRight(Some(List[B]()): Option[List[B]]){(x, acc) => ex04_03_Map2(f(x), acc)(_ :: _)}
+    a.foldRight[BOption[List[B]]] (BSome(List[B]())) {(x, acc) => ex04_03_Map2(f(x), acc)(_ :: _)}
+  }
+
+  def sequence[A](a: List[BOption[A]]): BOption[List[A]] = apply(a)(x => x)
 }
