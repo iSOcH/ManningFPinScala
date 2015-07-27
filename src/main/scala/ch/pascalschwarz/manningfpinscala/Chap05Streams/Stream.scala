@@ -111,6 +111,25 @@ sealed trait Stream[+A] {
     case Cons(h, t) if p(h()) => Some{ (h(), t()) }
     case _ => None
   }
+  def zipWith[B, C](b: Stream[B])(f: (A, B) => C): Stream[C] = Stream.unfold((this, b)) {
+    case (Cons(ha, ta), Cons(hb, tb)) => Some{ (f(ha(),hb()), (ta(), tb())) }
+    case _ => None
+  }
+  def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = Stream.unfold((this, s2)) {
+    case (Cons(h, t), Cons(h2, t2)) => Some{ ( (Some(h()), Some(h2())), (t(), t2())) }
+    case (Cons(h, t), _) => Some{ ( (Some(h()), None), (t(), Stream.empty) ) }
+    case (_, Cons(h, t)) => Some{ ( (None, Some(h())), (Stream.empty, t()) ) }
+    case _ => None
+  }
+
+  // ex05_14
+
+  // this stackoverflows even if `this` is long and s is empty
+  def startsWithBad[A](s: Stream[A]): Boolean = zipAll(s).foldRight(true) {
+    case ((Some(a), Some(b)), acc) => a == b && acc
+    case ((Some(_), _), acc) => acc
+    case _ => false
+  }
 }
 case class Cons[+A](head: () => A, tail: () => Stream[A]) extends Stream[A]
 case object Empty extends Stream[Nothing]
