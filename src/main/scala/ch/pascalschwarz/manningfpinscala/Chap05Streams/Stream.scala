@@ -104,7 +104,7 @@ sealed trait Stream[+A] {
   }
   def takeUF(n: Int): Stream[A] = Stream.unfold((this,n)) {
     case (Cons(h, _), 1) => Some{ (h(), (Stream.empty, 0)) }
-    case (Cons(h, t), n) if n > 1 => Some{ (h(), (t(), (n-1))) }
+    case (Cons(h, t), n) if n > 1 => Some{ (h(), (t(), n-1)) }
     case _ => None
   }
   def takeWhileUF(p: A => Boolean) = Stream.unfold(this) {
@@ -123,13 +123,12 @@ sealed trait Stream[+A] {
   }
 
   // ex05_14
-
-  // this stackoverflows even if `this` is long and s is empty
-  def startsWithBad[A](s: Stream[A]): Boolean = zipAll(s).foldRight(true) {
-    case ((Some(a), Some(b)), acc) => a == b && acc
-    case ((Some(_), _), acc) => acc
-    case _ => false
+  def startsWith[A](s: Stream[A]): Boolean = zipAll(s).foldRight(true) { (p, acc) =>
+    if (p._2.isEmpty) true
+    else (p._1 == p._2) && acc
   }
+  def startsWithSol[A](s: Stream[A]): Boolean =
+    zipAll(s).takeWhileUF(_._2.isDefined) forAll (p => p._1 == p._2)
 }
 case class Cons[+A](head: () => A, tail: () => Stream[A]) extends Stream[A]
 case object Empty extends Stream[Nothing]
