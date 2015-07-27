@@ -129,6 +129,20 @@ sealed trait Stream[+A] {
   }
   def startsWithSol[A](s: Stream[A]): Boolean =
     zipAll(s).takeWhileUF(_._2.isDefined) forAll (p => p._1 == p._2)
+
+  // ex05_15
+  def tails: Stream[Stream[A]] = {
+    Stream.unfold(this){
+      case Empty => None
+      case c: Cons[A] => Some{ (c, c.tail()) }
+    } append Stream(Empty)
+  }
+  def hasSubsequence[A](s: Stream[A]): Boolean = tails exists (_ startsWith s)
+
+  // ex05_16
+  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = {
+    ???
+  }
 }
 case class Cons[+A](head: () => A, tail: () => Stream[A]) extends Stream[A]
 case object Empty extends Stream[Nothing]
