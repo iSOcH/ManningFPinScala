@@ -140,9 +140,11 @@ sealed trait Stream[+A] {
   def hasSubsequence[A](s: Stream[A]): Boolean = tails exists (_ startsWith s)
 
   // ex05_16
-  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = {
-    ???
-  }
+  def scanRight[B](z: => B)(f: (A, => B) => B): Stream[B] = foldRight((z, Stream(z))){ (a, acc) =>
+    lazy val acc2 = acc // because it is passed by-name, we must be cautious to only evaluate once
+    val r = f(a, acc2._1)
+    (r, Stream.cons(r, acc2._2))
+  }._2
 }
 case class Cons[+A](head: () => A, tail: () => Stream[A]) extends Stream[A]
 case object Empty extends Stream[Nothing]
