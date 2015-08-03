@@ -82,7 +82,7 @@ object RNG {
   // sequenceSol and also sequenceSol2 are both not stacksafe
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = initialRng => {
     // foldRight on default List is stacksafe
-    fs.foldRight{ (List[A](), initialRng) } { case (rand, (acc, rng)) => {
+    fs.foldLeft{ (List[A](), initialRng) } { case ((acc, rng), rand) => {
       val (res, newRng) = rand(rng)
       (res :: acc, newRng)
     }}
@@ -95,6 +95,6 @@ object RNG {
     // as long as we're talking about random values, there is no need to reverse
   }
   def ints2(n: Int): Rand[List[Int]] = { // also possible = rng => {
-    sequenceSol2{ List.fill(n) (nonNegativeInt _) } // then here: (rng)
+    sequence{ List.fill(n) (nonNegativeInt _) } // then here: (rng)
   }
 }
