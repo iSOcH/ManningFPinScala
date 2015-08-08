@@ -80,8 +80,9 @@ object RNG {
 
   // ex06_07
   // sequenceSol and also sequenceSol2 are both not stacksafe
+  // some background: https://github.com/fpinscala/fpinscala/issues/428
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = initialRng => {
-    // foldRight on default List is stacksafe
+    // foldRight on default List is stacksafe, foldLeft is still better (no reverse)
     fs.foldLeft{ (List[A](), initialRng) } { case ((acc, rng), rand) => {
       val (res, newRng) = rand(rng)
       (res :: acc, newRng)
@@ -96,5 +97,18 @@ object RNG {
   }
   def ints2(n: Int): Rand[List[Int]] = { // also possible = rng => {
     sequence{ List.fill(n) (nonNegativeInt _) } // then here: (rng)
+  }
+
+  // ex06_08
+  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
+    val (a, r) = f(rng)
+    g(a)(r)
+  }
+  def nonNegativeLessThan(n: Int): Rand[Int] = {
+    flatMap(nonNegativeInt) { i =>
+      val mod = i % n
+      if (i + (n-1) - mod >= 0) unit(mod)
+      else nonNegativeLessThan(n) // (i + (n-1) - mod) overflowed
+    }
   }
 }
