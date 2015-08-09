@@ -20,7 +20,9 @@ object Candy {
   }
 
   def simulateMachine(inputs: List[Input]): State[Machine, (Int,Int)] = State{(machine: Machine) =>
-    val actions = State.sequence( inputs.map(State.modify[Machine] _ compose update) ) // TODO: modify seems unneeded...
+    val actions = State.sequence{
+      inputs.map(update andThen State.modify[Machine])
+    }
     val (_, finalMachine) = actions.run(machine)
     ((finalMachine.coins, finalMachine.candies), finalMachine)
   }
