@@ -21,7 +21,13 @@ trait Prop {
   def check: Either[(FailedCase, SuccessCount), SuccessCount]
 }
 
-case class Gen[A](sample: State[RNG,A])
+case class Gen[A](sample: State[RNG,A]) {
+  // ex08_06
+  def flatMap[B](f: A => Gen[B]): Gen[B] = Gen{ sample.flatMap(f.andThen(_.sample)) }
+  def listOfN(size: Int) = Gen.listOfN(size, this)
+  def listOfN(size: Gen[Int]): Gen[List[A]] = size.flatMap(listOfN)
+}
+
 object Gen {
   // ex08_04
   def choose(start: Int, stopExclusive: Int): Gen[Int] = Gen(State{r =>
@@ -37,7 +43,7 @@ object Gen {
     State.sequence(List.fill(n)(g.sample))
   }
 
-  // free
+  // play
   def choosePair(start: Int, stopExclusive: Int): Gen[(Int,Int)] = Gen(State{r =>
     val (first, r2) = choose(start, stopExclusive).sample.run(r)
     val (second, r3) = choose(start, stopExclusive).sample.run(r2)
@@ -45,4 +51,17 @@ object Gen {
   })
   def toOption[A](g: Gen[A]): Gen[Option[A]] = Gen(g.sample.map(x => Some(x)))
   def fromOption[A](g: Gen[Option[A]]): Gen[A] = Gen(g.sample.filter(_.isDefined).map(_.get)) // does not terminate if all of the generated Options are None
+
+  // ex08_07
+  def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = boolean.flatMap(b => if (b) g1 else g2)
+
+  // ex 08_08
+  def double: Gen[Double] = Gen(State(RNG.double))
+  def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] = {
+    val (p1, p2) = (Math.max(0, g1._2), Math.max(0, g2._2)) // probabilities cannot be <0
+    Gen.double.flatMap{d =>
+      val first = d * (p1+p2) < p1
+      if (first) g1._1 else g2._1
+    }
+  }
 }
