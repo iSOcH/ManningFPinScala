@@ -122,6 +122,10 @@ sealed trait Stream[+A] {
     case _ => None
   }
 
+  // for P134
+  def zip[B](s2: Stream[B]): Stream[(A,B)] = this.zipWith(s2)(Tuple2.apply)
+  def find(p: A => Boolean): Option[A] = filter(p).headOption
+
   // ex05_14
   def startsWith[A](s: Stream[A]): Boolean = zipAll(s).foldRight(true) { (p, acc) =>
     if (p._2.isEmpty) true

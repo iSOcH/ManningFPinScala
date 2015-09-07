@@ -1,24 +1,63 @@
 package ch.pascalschwarz.manningfpinscala.Chap08Testing
 
+import ch.pascalschwarz.manningfpinscala.Chap05Streams.Stream
 import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.{State, RNG}
-import ch.pascalschwarz.manningfpinscala.Chap08Testing.Prop.{SuccessCount, FailedCase}
+import ch.pascalschwarz.manningfpinscala.Chap08Testing.Prop.{TestCases, SuccessCount, FailedCase}
 
 trait Prop1 {
   def check: Boolean
 
   // ex08_03
-  def &&(p: Prop1): Prop1 = new Prop1 { def check = this.check && this.check }
+  def &&(p: Prop1): Prop1 = new Prop1 { def check = this.check && p.check }
 }
 
 
 
 object Prop {
   type FailedCase = String
+  type TestCases = Int
   type SuccessCount = Int
+
+  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (n, rng) =>
+    randomStream(as)(rng).zip(Stream.from(0)).take(n).map{ case (a,i) => try {
+      if (f(a)) Passed else Falsified(a.toString, i)
+    } catch { case e: Exception => Falsified(buildMsg(a, e), i)
+    }}.find(_.isFalsified).getOrElse(Passed)
+  }
+
+  def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)(rng => Some(g.sample.run(rng)))
+  def buildMsg[A](s: A, e: Exception): String =
+    s"test case:\n" +
+    s"generated an exception: ${e.getMessage}\n" +
+    s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+}
+case class Prop(run: (TestCases,RNG) => Result) {
+  // ex08_09
+  def &&(p: Prop): Prop = Prop{ (n, rng) =>
+    Stream(this.labelled("left"), p.labelled("right")).map(_.run(n,rng)).find(_.isFalsified).getOrElse(Passed)
+  }
+  def ||(p: Prop): Prop = Prop{ (n, rng) =>
+    run(n, rng) match {
+      case Falsified => p.run(n, rng)
+      case x => x
+    }
+  }
+  def labelled(s: String): Prop = Prop { (n,rng) =>
+    run(n,rng) match {
+      case Falsified(e, c) => Falsified(s + "\n" + e, c)
+      case success => success
+    }
+  }
 }
 
-trait Prop {
-  def check: Either[(FailedCase, SuccessCount), SuccessCount]
+sealed trait Result {
+  def isFalsified : Boolean
+}
+case object Passed extends Result {
+  override val isFalsified = false
+}
+case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+  override val isFalsified = true
 }
 
 case class Gen[A](sample: State[RNG,A]) {
