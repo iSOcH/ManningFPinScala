@@ -36,4 +36,13 @@ object Gen {
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = Gen{
     State.sequence(List.fill(n)(g.sample))
   }
+
+  // free
+  def choosePair(start: Int, stopExclusive: Int): Gen[(Int,Int)] = Gen(State{r =>
+    val (first, r2) = choose(start, stopExclusive).sample.run(r)
+    val (second, r3) = choose(start, stopExclusive).sample.run(r2)
+    ((first, second), r3)
+  })
+  def toOption[A](g: Gen[A]): Gen[Option[A]] = Gen(g.sample.map(x => Some(x)))
+  def fromOption[A](g: Gen[Option[A]]): Gen[A] = Gen(g.sample.filter(_.isDefined).map(_.get)) // does not terminate if all of the generated Options are None
 }

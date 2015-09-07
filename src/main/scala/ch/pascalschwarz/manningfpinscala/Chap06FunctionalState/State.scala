@@ -15,6 +15,15 @@ case class State[S, +A](run: S => (A, S)) {
     val (a, s2) = run(s)
     f(a).run(s2)
   }
+
+  // for p131
+  def filter(p: A => Boolean): State[S, A] = State { s =>
+    var x = run(s)
+    while (!p(x._1)) {
+      x = run(x._2)
+    }
+    (x._1, x._2)
+  }
 }
 
 object State {
