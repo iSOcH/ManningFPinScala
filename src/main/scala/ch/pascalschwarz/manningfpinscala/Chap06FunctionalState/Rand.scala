@@ -117,4 +117,10 @@ object RNG {
   def map2_[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A,B) => C): Rand[C] = flatMap(ra) {
     a => map(rb)(b => f(a,b))
   }
+
+  // for ex08_05
+  def boolean(r: RNG): (Boolean, RNG) = {
+    val (n, rNext) = r.nextInt
+    (n % 2 == 0, rNext)
+  }
 }
