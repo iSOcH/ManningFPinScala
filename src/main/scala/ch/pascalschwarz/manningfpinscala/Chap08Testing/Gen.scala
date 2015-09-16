@@ -1,8 +1,8 @@
 package ch.pascalschwarz.manningfpinscala.Chap08Testing
 
 import ch.pascalschwarz.manningfpinscala.Chap05Streams.Stream
-import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.{State, RNG}
-import ch.pascalschwarz.manningfpinscala.Chap08Testing.Prop.{TestCases, SuccessCount, FailedCase}
+import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.{SimpleRNG, State, RNG}
+import ch.pascalschwarz.manningfpinscala.Chap08Testing.Prop.{MaxSize, TestCases, SuccessCount, FailedCase}
 
 trait Prop1 {
   def check: Boolean
@@ -11,39 +11,55 @@ trait Prop1 {
   def &&(p: Prop1): Prop1 = new Prop1 { def check = this.check && p.check }
 }
 
-
-
 object Prop {
   type FailedCase = String
   type TestCases = Int
   type SuccessCount = Int
+  type MaxSize = Int
 
-  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (n, rng) =>
+  def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)(rng => Some(g.sample.run(rng)))
+  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (max, n, rng) =>
     randomStream(as)(rng).zip(Stream.from(0)).take(n).map{ case (a,i) => try {
       if (f(a)) Passed else Falsified(a.toString, i)
     } catch { case e: Exception => Falsified(buildMsg(a, e), i)
     }}.find(_.isFalsified).getOrElse(Passed)
   }
 
-  def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)(rng => Some(g.sample.run(rng)))
+  def forAll[A](g: SGen[A])(f: A => Boolean): Prop = forAll(g(_))(f)
+  def forAll[A](g: Int => Gen[A])(f: A => Boolean): Prop = Prop{ (max, n, rng) =>
+    val casesPerSize = (n + (max - 1)) / max
+    val props: Stream[Prop] = Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
+    val prop: Prop = props.map(p => Prop { (max, _, r) =>
+      p.run(max, casesPerSize, r)
+    }).toList.reduce(_ && _)
+    prop.run(max, n, rng)
+  }
+
   def buildMsg[A](s: A, e: Exception): String =
     s"test case:\n" +
     s"generated an exception: ${e.getMessage}\n" +
     s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+
+  def run(p: Prop, maxSize: Int = 100, testCases: Int = 100, rng: RNG = SimpleRNG(System.currentTimeMillis())): Unit =
+    p.run(maxSize, testCases, rng) match {
+      case Falsified(msg, n) =>
+        println(s"! Falisified after $n passed tests:\n $msg")
+      case Passed => println(s"+ OK, passed $testCases tests.")
+    }
 }
-case class Prop(run: (TestCases,RNG) => Result) {
+case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
   // ex08_09
-  def &&(p: Prop): Prop = Prop{ (n, rng) =>
-    Stream(this.labelled("left"), p.labelled("right")).map(_.run(n,rng)).find(_.isFalsified).getOrElse(Passed)
+  def &&(p: Prop): Prop = Prop{ (max, n, rng) =>
+    Stream(this.labelled("left"), p.labelled("right")).map(_.run(max, n, rng)).find(_.isFalsified).getOrElse(Passed)
   }
-  def ||(p: Prop): Prop = Prop{ (n, rng) =>
-    run(n, rng) match {
-      case Falsified => p.run(n, rng)
+  def ||(p: Prop): Prop = Prop{ (max, n, rng) =>
+    run(max, n, rng) match {
+      case Falsified(_, _) => p.run(max, n, rng)
       case x => x
     }
   }
-  def labelled(s: String): Prop = Prop { (n,rng) =>
-    run(n,rng) match {
+  def labelled(s: String): Prop = Prop { (max, n,rng) =>
+    run(max, n,rng) match {
       case Falsified(e, c) => Falsified(s + "\n" + e, c)
       case success => success
     }
@@ -60,11 +76,16 @@ case class Falsified(failure: FailedCase, successes: SuccessCount) extends Resul
   override val isFalsified = true
 }
 
-case class Gen[A](sample: State[RNG,A]) {
+case class Gen[+A](sample: State[RNG,A]) {
+  def map[B](f: A => B): Gen[B] = Gen{ sample map f }
+
   // ex08_06
   def flatMap[B](f: A => Gen[B]): Gen[B] = Gen{ sample.flatMap(f.andThen(_.sample)) }
   def listOfN(size: Int) = Gen.listOfN(size, this)
   def listOfN(size: Gen[Int]): Gen[List[A]] = size.flatMap(listOfN)
+
+  // ex08_10
+  def unsized: SGen[A] = SGen(_ => this)
 }
 
 object Gen {
@@ -103,4 +124,31 @@ object Gen {
       if (first) g1._1 else g2._1
     }
   }
+}
+
+case class SGen[+A](forSize: Int => Gen[A]) {
+  // ex08_11
+  def apply(n: Int): Gen[A] = forSize(n)
+  def map[B](f: A => B): SGen[B] = SGen{ forSize andThen(_ map f) }
+  def flatMap[B](f: A => Gen[B]): SGen[B] = SGen{ forSize andThen(_ flatMap f) }
+}
+
+object SGen{
+  // ex08_12
+  def listOf[A](g: Gen[A]): SGen[List[A]] = SGen{ g.listOfN }
+
+  // ex08_13
+  def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen{ n => g.listOfN(n max 1) } // there will be more testCases of size 1 this way... not that important though
+}
+
+object SomeProps {
+  import Prop._
+  val smallInt = Gen.choose(-10, 10)
+  val maxProp = forAll(SGen.listOf1(smallInt)) { ns =>
+    val max = ns.max
+    !ns.exists(_ > max)
+  }
+
+  // ex08_14
+  val sortedProp = ???
 }
