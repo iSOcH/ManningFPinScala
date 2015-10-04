@@ -1,7 +1,10 @@
 package ch.pascalschwarz.manningfpinscala.Chap08Testing
 
+import java.util.concurrent.Executors
+
 import ch.pascalschwarz.manningfpinscala.Chap05Streams.Stream
 import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.{SimpleRNG, State, RNG}
+import ch.pascalschwarz.manningfpinscala.Chap07FunctionalParallelism.NonBlocking.NonBlocking.Par
 import ch.pascalschwarz.manningfpinscala.Chap08Testing.Prop.{MaxSize, TestCases, SuccessCount, FailedCase}
 
 trait Prop1 {
@@ -35,6 +38,18 @@ object Prop {
     prop.run(max, n, rng)
   }
 
+  val S = Gen.weighted(
+    Gen.choose(1,4).map(Executors.newFixedThreadPool) -> 0.75,
+    Gen.unit(Executors.newCachedThreadPool) -> 0.25
+  )
+  def forAllPar[A](g: Gen[A])(f: A => Par[Boolean]): Prop =
+    forAll(S ** g) {case (s,a) => Par.run(s)(f(a))}
+
+  def check(p: => Boolean): Prop = Prop { (_, _, _) =>
+    if (p) Proved else Falsified("()", 0)
+  }
+  def checkPar(p: Par[Boolean]): Prop = forAllPar(Gen.unit(()))(_ => p)
+
   def buildMsg[A](s: A, e: Exception): String =
     s"test case:\n" +
     s"generated an exception: ${e.getMessage}\n" +
@@ -45,6 +60,7 @@ object Prop {
       case Falsified(msg, n) =>
         println(s"! Falisified after $n passed tests:\n $msg")
       case Passed => println(s"+ OK, passed $testCases tests.")
+      case Proved => println(s"+ OK, proved property.")
     }
 }
 case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
@@ -69,6 +85,9 @@ case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
 sealed trait Result {
   def isFalsified : Boolean
 }
+case object Proved extends Result {
+  override val isFalsified = false
+}
 case object Passed extends Result {
   override val isFalsified = false
 }
@@ -78,6 +97,11 @@ case class Falsified(failure: FailedCase, successes: SuccessCount) extends Resul
 
 case class Gen[+A](sample: State[RNG,A]) {
   def map[B](f: A => B): Gen[B] = Gen{ sample map f }
+
+  def map2[B,C](g: Gen[B])(f: (A,B) => C): Gen[C] =
+    Gen(sample.map2(g.sample)(f))
+
+  def **[B](g: Gen[B]): Gen[(A,B)] = (this map2 g)(_ -> _)
 
   // ex08_06
   def flatMap[B](f: A => Gen[B]): Gen[B] = Gen{ sample.flatMap(f.andThen(_.sample)) }
@@ -90,11 +114,8 @@ case class Gen[+A](sample: State[RNG,A]) {
 
 object Gen {
   // ex08_04
-  def choose(start: Int, stopExclusive: Int): Gen[Int] = Gen(State{r =>
-    val rangeScale = (stopExclusive - start) / Math.pow(2,32)
-    val (n, nextrng) = r.nextInt
-    ((n * rangeScale).toInt + start, nextrng)
-  })
+  def choose(start: Int, stopExclusive: Int): Gen[Int] =
+    Gen(State(RNG.nonNegativeInt).map(n => start + n % (stopExclusive-start)))
 
   // ex08_05
   def unit[A](a: => A): Gen[A] = Gen(State(r => (a,r)))
@@ -150,5 +171,49 @@ object SomeProps {
   }
 
   // ex08_14
-  val sortedProp = ???
+  val sortedProp = forAll(SGen.listOf(smallInt)) { ns =>
+    val sorted = ns.sorted
+    (for {
+      i <- sorted.indices if i > 0
+      (h, t) = sorted.splitAt(i)
+    } yield h.last <= t.min).fold(true)(_ && _) &&
+      sorted.forall(ns.contains) && ns.forall(sorted.contains)
+  }
+
+  val p2 = check {
+    val ES = Executors.newCachedThreadPool()
+    val p = Par.map(Par.unit(1))(_ + 1)
+    val p2 = Par.unit(2)
+    Par.run(ES)(p) == Par.run(ES)(p2)
+  }
+  def equal[A](p: Par[A], p2: Par[A]): Par[Boolean] = Par.map2(p, p2)(_ == _)
+  val p3 = check {
+    val ES = Executors.newCachedThreadPool()
+    Par.run(ES)(equal(Par.map(Par.unit(1))(_ + 1), Par.unit(2)))
+  }
+  val p2_2 = checkPar {
+    equal(
+      Par.map(Par.unit(1))(_ + 1),
+      Par.unit(2)
+    )
+  }
+
+  val pint = Gen.choose(0,10) map (Par.unit)
+  val p4 = forAllPar(pint)(n => equal(Par.map(n)(y => y), n))
+
+  // ex08_16
+  val pint2: Gen[Par[Int]] = Gen.choose(-100,100).listOfN(Gen.choose(0,20)).map(l =>
+    l.foldLeft(Par.unit(0)) { (p, i) =>
+      val ui = Par.unit(i)
+      val calc = () => Par.map2(p, ui)(_ + _)
+      if (i % 2 == 0) Par.fork { calc() }
+      else calc()
+    }
+  )
+  val p4_2 = forAllPar(pint2)(n => equal(Par.map(n)(y => y), n))
+
+  // ex08_17
+  val forkProp: Prop = Prop.forAllPar(pint2){ i =>
+    equal(Par.fork(i), i)
+  }
 }
