@@ -216,4 +216,10 @@ object SomeProps {
   val forkProp: Prop = Prop.forAllPar(pint2){ i =>
     equal(Par.fork(i), i)
   }
+
+  /* ex08_18
+    s.takeWhile(_ => true) == s
+    s.takeWhile(_ => false) == List()
+    s.takeWhile(f) ++ s.dropWhile(f) == s
+   */
 }
