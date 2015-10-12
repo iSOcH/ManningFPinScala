@@ -14,7 +14,7 @@ object MyJSONParser {
     val jsonNumber: Parser[JNumber] = (regex("-?[0-9]+\\.?[0-9]*".r) or regex("-?\\.[0-9]+".r)) map (d => JNumber(d.toDouble))
 
     // we might want to handle toBoolean error and result in parse-fail... but it should not fail here
-    val jsonBool: Parser[JBool] = (string("true") | string("false")) map (b => JBool(b.toBoolean))
+    val jsonBool: Parser[JBool] = ("true" | "false") map (b => JBool(b.toBoolean))
 
 
     object stringParsing {
@@ -34,11 +34,15 @@ object MyJSONParser {
       char(']'))
       .map(l => JArray(l._1._2.to[IndexedSeq]))
 
-    val jsonObject: Parser[JObject] =
+    val jsonObject2: Parser[JObject] =
       (char('{') **
         (jsonString ** char(':') ** jsonParser(P)).many(char(',')) **
       char('}'))
       .map(_._1._2.map(v => v._1._1.get -> v._2)).map(l => JObject(Map(l:_*)))
+
+    val jsonObject: Parser[JObject] =
+      (char('{') *> ((jsonString <* char(':')) ** jsonParser(P)).many(char(',')) <* char('}'))
+      .map(_.map(e => e._1.get -> e._2)).map(l => JObject(l.toMap))
 
     jsonNull | jsonBool | jsonNumber | jsonString | jsonArray | jsonObject
   }

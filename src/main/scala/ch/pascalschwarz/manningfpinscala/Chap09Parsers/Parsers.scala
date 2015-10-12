@@ -23,6 +23,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   def opt[A](p: Parser[A]): Parser[Option[A]] = (p map (Some(_))) | succeed(None)
   def many[A](p: Parser[A], separator: Parser[_]): Parser[List[A]] = map2(p, (separator.slice ** p).many)(_ :: _.map(_._2))
 
+  def skipL[A](pl: Parser[_], pr: Parser[A]): Parser[A] = (pl.slice ** pr).map(_._2)
+  def skipR[A](pl: Parser[A], pr: Parser[_]): Parser[A] = (pl ** pr.slice).map(_._1)
+
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
   def many1[A](p: Parser[A]): Parser[List[A]] = map2(p, p.many)(_ :: _)
@@ -78,6 +81,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
     def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
 
     def opt: Parser[Option[A]] = self.opt(p)
+
+    def *>[B](pr: Parser[B]): Parser[B] = self.skipL(p, pr)
+    def <*(pr: Parser[_]): Parser[A] = self.skipR(p, pr)
   }
 
   object Laws {
