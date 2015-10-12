@@ -20,6 +20,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   def slice[A](p: Parser[A]): Parser[String]
   def exCountA = char('a').many.slice.map(_.length)
 
+  def opt[A](p: Parser[A]): Parser[Option[A]] = (p map (Some(_))) | succeed(None)
+  def many[A](p: Parser[A], separator: Parser[_]): Parser[List[A]] = map2(p, (separator.slice ** p).many)(_ :: _.map(_._2))
+
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
   def many1[A](p: Parser[A]): Parser[List[A]] = map2(p, p.many)(_ :: _)
@@ -67,10 +70,14 @@ trait Parsers[ParseError, Parser[+_]] { self =>
     def many1: Parser[List[A]] = self.many1(p)
     def slice: Parser[String] = self.slice(p)
 
+    def many(separator: Parser[_]): Parser[List[A]] = self.many(p, separator)
+
     def product[B](pb: => Parser[B]): Parser[(A,B)] = self.product(p, pb)
     def **[B](pb: => Parser[B]): Parser[(A,B)]= self.product(p, pb)
 
     def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
+
+    def opt: Parser[Option[A]] = self.opt(p)
   }
 
   object Laws {

@@ -1,6 +1,6 @@
 package ch.pascalschwarz.manningfpinscala.Chap09Parsers
 
-import ch.pascalschwarz.manningfpinscala.Chap09Parsers.JSON.{JString, JNumber, JBool, JNull}
+import ch.pascalschwarz.manningfpinscala.Chap09Parsers.JSON._
 
 // ex 09_09
 object MyJSONParser {
@@ -13,8 +13,8 @@ object MyJSONParser {
     // TODO: NaN, Infinity
     val jsonNumber: Parser[JNumber] = (regex("-?[0-9]+\\.?[0-9]*".r) or regex("-?\\.[0-9]+".r)) map (d => JNumber(d.toDouble))
 
-    // we might want to handle toBoolean error and result in parse-fail... but it should not fail in these cases
-    val jsonBool: Parser[JBool] = (string("true") or string("false")) map (b => JBool(b.toBoolean))
+    // we might want to handle toBoolean error and result in parse-fail... but it should not fail here
+    val jsonBool: Parser[JBool] = (string("true") | string("false")) map (b => JBool(b.toBoolean))
 
 
     object stringParsing {
@@ -25,8 +25,21 @@ object MyJSONParser {
     val jsonString: Parser[JString] =
       (char('"') **
         (stringParsing.unicode | stringParsing.escapedChar | stringParsing.regularString).many **
-      char('"')).map(s => JString(s._1._2.mkString))
+      char('"'))
+        .map(s => JString(s._1._2.mkString))
 
-    ???
+    val jsonArray: Parser[JArray] =
+      (char('[') **
+      jsonParser(P).many(char(',')) **
+      char(']'))
+      .map(l => JArray(l._1._2.to[IndexedSeq]))
+
+    val jsonObject: Parser[JObject] =
+      (char('{') **
+        (jsonString ** char(':') ** jsonParser(P)).many(char(',')) **
+      char('}'))
+      .map(_._1._2.map(v => v._1._1.get -> v._2)).map(l => JObject(Map(l:_*)))
+
+    jsonNull | jsonBool | jsonNumber | jsonString | jsonArray | jsonObject
   }
 }
