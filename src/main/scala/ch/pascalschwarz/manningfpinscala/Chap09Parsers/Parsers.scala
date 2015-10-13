@@ -25,6 +25,7 @@ trait Parsers[ParseError, Parser[+_]] { self =>
 
   def skipL[A](pl: Parser[_], pr: Parser[A]): Parser[A] = (pl.slice ** pr).map(_._2)
   def skipR[A](pl: Parser[A], pr: Parser[_]): Parser[A] = (pl ** pr.slice).map(_._1)
+  def surround[A](start: Parser[_], end: Parser[_])(content: => Parser[A]): Parser[A] = start *> content <* end
 
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
