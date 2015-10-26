@@ -2,7 +2,7 @@ package ch.pascalschwarz.manningfpinscala.Chap09Parsers
 
 import scala.util.matching.Regex
 
-trait Parsers[ParseError, Parser[+_]] { self =>
+trait Parsers[Parser[+_]] { self =>
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
   def char(c: Char): Parser[Char] = string(c.toString) map (_.charAt(0))
   def or[A](s1: Parser[A], s2: => Parser[A]): Parser[A]
@@ -27,6 +27,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   def skipR[A](pl: Parser[A], pr: Parser[_]): Parser[A] = (pl ** pr.slice).map(_._1)
   def surround[A](start: Parser[_], end: Parser[_])(content: => Parser[A]): Parser[A] = start *> content <* end
 
+  def label[A](msg: String)(p: Parser[A]): Parser[A]
+  def scope[A](msg: String)(p: Parser[A]): Parser[A]
+
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
   def many1[A](p: Parser[A]): Parser[List[A]] = map2(p, p.many)(_ :: _)
@@ -42,7 +45,7 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   // ex09_04
   def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]] = (n, p) match {
     case (0, _) => succeed(List())
-    case (n, p) => map2(p, listOfN(n-1, p))(_ :: _)
+    case (_, _) => map2(p, listOfN(n-1, p))(_ :: _)
   }
 
   // ex09_05
@@ -63,6 +66,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
 
   // ex09_08
   def map[A,B](p: Parser[A])(f: A => B): Parser[B] = p flatMap (a => succeed(f(a)))
+
+  def errorLocation(e: ParseError): Location
+  def errorMessage(e: ParseError): String
 
   case class ParserOps[A](p: Parser[A]) {
     def |[B>:A](p2: Parser[B]) = self.or(p, p2)
@@ -105,5 +111,26 @@ trait Parsers[ParseError, Parser[+_]] { self =>
       val aParser = char('a').many
       equal(aParser, product(succeed('x'), aParser).map(_._2))(in)
     }
+    def labelLaw[A](p: Parser[A], inputs: SGen[String]): Prop = Prop.forAll(inputs ** Gen.string) { case (input, msg) =>
+      run(label(msg)(p))(input) match {
+        case Left(e) => errorMessage(e) == msg
+        case _ => true
+      }
+    }
   }
+}
+
+case class Location(input: String, offset: Int = 0) {
+  lazy val line: Int = input.slice(0, offset+1).count(_ == '\n') + 1
+  lazy val col: Int = input.slice(0, offset+1).lastIndexOf('\n') match {
+    case -1 => offset+1
+    case lineStart => offset - lineStart
+  }
+}
+
+case class ParseError(stack: List[(Location, String)]) {
+  def push(loc: Location, msg: String): ParseError = copy(stack = loc -> msg :: stack)
+  def label[A](s: String): ParseError = ParseError(latestLoc.map((_, s)).toList)
+  def latestLoc: Option[Location] = latest map (_._1)
+  def latest: Option[(Location, String)] = stack.lastOption
 }

@@ -4,7 +4,7 @@ import ch.pascalschwarz.manningfpinscala.Chap09Parsers.JSON._
 
 // ex 09_09
 object MyJSONParser {
-  def jsonParser[Err, Parser[+_]](P: Parsers[Err, Parser]): Parser[JSON] = {
+  def jsonParser[Parser[+_]](P: Parsers[Parser]): Parser[JSON] = {
     import P._
     val spaces = "\\s+".many.slice
 

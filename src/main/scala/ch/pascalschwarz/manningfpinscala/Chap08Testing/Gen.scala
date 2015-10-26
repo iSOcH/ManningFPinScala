@@ -113,6 +113,11 @@ case class Gen[+A](sample: State[RNG,A]) {
 }
 
 object Gen {
+  def stringN(n: Int): Gen[String] =
+    listOfN(n, choose(0,127)).map(_.map(_.toChar).mkString)
+
+  val string: SGen[String] = SGen(stringN)
+
   // ex08_04
   def choose(start: Int, stopExclusive: Int): Gen[Int] =
     Gen(State(RNG.nonNegativeInt).map(n => start + n % (stopExclusive-start)))
@@ -152,6 +157,12 @@ case class SGen[+A](forSize: Int => Gen[A]) {
   def apply(n: Int): Gen[A] = forSize(n)
   def map[B](f: A => B): SGen[B] = SGen{ forSize andThen(_ map f) }
   def flatMap[B](f: A => Gen[B]): SGen[B] = SGen{ forSize andThen(_ flatMap f) }
+  def map2[B,C](g: SGen[B])(f: (A,B) => C): SGen[C] = SGen{ s: Int =>
+    val ga = forSize(s)
+    val gb = g.forSize(s)
+    ga.map2(gb)(f)
+  }
+  def **[B](g: SGen[B]): SGen[(A,B)] = (this map2 g)(_ -> _)
 }
 
 object SGen{
@@ -176,7 +187,7 @@ object SomeProps {
     (for {
       i <- sorted.indices if i > 0
       (h, t) = sorted.splitAt(i)
-    } yield h.last <= t.min).fold(true)(_ && _) &&
+    } yield h.last <= t.min).forall(_ == true) &&
       sorted.forall(ns.contains) && ns.forall(sorted.contains)
   }
 
@@ -198,7 +209,7 @@ object SomeProps {
     )
   }
 
-  val pint = Gen.choose(0,10) map (Par.unit)
+  val pint = Gen.choose(0,10) map Par.unit
   val p4 = forAllPar(pint)(n => equal(Par.map(n)(y => y), n))
 
   // ex08_16
