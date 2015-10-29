@@ -1,5 +1,7 @@
 package ch.pascalschwarz.manningfpinscala.Chap09Parsers
 
+import ch.pascalschwarz.manningfpinscala.Chap09Parsers.ParserTypes.Result
+
 import scala.util.matching.Regex
 
 trait Parsers[Parser[+_]] { self =>
@@ -49,11 +51,12 @@ trait Parsers[Parser[+_]] { self =>
   }
 
   // ex09_05
+  /*
   def lzy[A](p: => Parser[A]): Parser[A] // seems unnecessary... don't know of any case where we want map2 to be strict
   def manyLzy[A](p: Parser[A]): Parser[List[A]] = {
     // only if p can parse `many` will be called again
     map2(p, lzy(p.many))(_ :: _) or succeed(List())
-  }
+  }*/
 
   // ex09_06
   val int: Parser[Int] = regex("[0-9]+".r).map(_.toInt)
@@ -67,6 +70,7 @@ trait Parsers[Parser[+_]] { self =>
   // ex09_08
   def map[A,B](p: Parser[A])(f: A => B): Parser[B] = p flatMap (a => succeed(f(a)))
 
+  def attempt[A](p: Parser[A]): Parser[A]
   def errorLocation(e: ParseError): Location
   def errorMessage(e: ParseError): String
 
@@ -126,6 +130,7 @@ case class Location(input: String, offset: Int = 0) {
     case -1 => offset+1
     case lineStart => offset - lineStart
   }
+  def advanceBy(n: Int): Location = copy(offset = offset + n)
 }
 
 case class ParseError(stack: List[(Location, String)]) {
