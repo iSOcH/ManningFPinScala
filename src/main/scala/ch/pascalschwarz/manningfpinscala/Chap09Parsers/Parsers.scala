@@ -23,7 +23,8 @@ trait Parsers[Parser[+_]] { self =>
   def exCountA = char('a').many.slice.map(_.length)
 
   def opt[A](p: Parser[A]): Parser[Option[A]] = (p map (Some(_))) | succeed(None)
-  def many[A](p: Parser[A], separator: Parser[_]): Parser[List[A]] = map2(p, (separator.slice ** p).many)(_ :: _.map(_._2))
+  def many[A](p: Parser[A], separator: Parser[_]): Parser[List[A]] = many1(p, separator) | succeed(List())
+  def many1[A](p: Parser[A], separator: Parser[_]): Parser[List[A]] = map2(p, (separator *> p).many)(_ :: _)
 
   def skipL[A](pl: Parser[_], pr: Parser[A]): Parser[A] = (pl.slice ** pr).map(_._2)
   def skipR[A](pl: Parser[A], pr: Parser[_]): Parser[A] = (pl ** pr.slice).map(_._1)

@@ -36,7 +36,7 @@ object ParserImpl extends Parsers[Parser] {
   }
 
   override def regex(r: Regex): Parser[String] = loc => {
-    r.findFirstIn(loc.cur) match {
+    r.findPrefixOf(loc.cur) match {
       case Some(res) => Success(res, res.length)
       case _ => Failure(ParseError(List(loc -> s"$r did not match")), false)
     }
