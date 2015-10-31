@@ -86,6 +86,7 @@ trait Parsers[Parser[+_]] { self =>
     def slice: Parser[String] = self.slice(p)
 
     def many(separator: Parser[_]): Parser[List[A]] = self.many(p, separator)
+    def many1(separator: Parser[_]): Parser[List[A]] = self.many1(p, separator)
 
     def product[B](pb: => Parser[B]): Parser[(A,B)] = self.product(p, pb)
     def **[B](pb: => Parser[B]): Parser[(A,B)]= self.product(p, pb)
@@ -93,6 +94,7 @@ trait Parsers[Parser[+_]] { self =>
     def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
 
     def opt: Parser[Option[A]] = self.opt(p)
+    def attempt: Parser[A] = self.attempt(p)
 
     def *>[B](pr: Parser[B]): Parser[B] = self.skipL(p, pr)
     def <*(pr: Parser[_]): Parser[A] = self.skipR(p, pr)
