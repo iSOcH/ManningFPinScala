@@ -36,6 +36,9 @@ trait Parsers[Parser[+_]] { self =>
   val spaces = "\\s*".r.slice
   def token[A](p: Parser[A]): Parser[A] = p.attempt <* spaces
 
+  val eof = regex("\\z".r).label("unexpected trailing characters")
+  def root[A](p: Parser[A]) = p <* eof
+
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
   def many1[A](p: Parser[A]): Parser[List[A]] = map2(p, p.many)(_ :: _)
@@ -102,6 +105,9 @@ trait Parsers[Parser[+_]] { self =>
 
     def *>[B](pr: Parser[B]): Parser[B] = self.skipL(p, pr)
     def <*(pr: Parser[_]): Parser[A] = self.skipR(p, pr)
+
+    def label(msg: String): Parser[A] = self.label(msg)(p)
+    def scope(msg: String): Parser[A] = self.scope(msg)(p)
   }
 
   object Laws {

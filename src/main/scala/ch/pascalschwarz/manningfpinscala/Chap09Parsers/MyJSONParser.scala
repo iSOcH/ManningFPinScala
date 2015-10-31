@@ -37,7 +37,6 @@ object MyJSONParser {
     }.token.map(_.map(e => e._1.get -> e._2)).map(l => JObject(l.toMap))
 
     def value = lit | jsonArray | jsonObject
-
-    value
+    root(value)
   }
 }
