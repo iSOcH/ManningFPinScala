@@ -9,7 +9,7 @@ trait Parsers[Parser[+_]] { self =>
   def char(c: Char): Parser[Char] = string(c.toString) map (_.charAt(0))
   def or[A](s1: Parser[A], s2: => Parser[A]): Parser[A]
   implicit def string(s: String): Parser[String]
-  implicit def operators[A](p: Parser[A]) = ParserOps[A](p)
+  implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
 
   //def exCountA = map(many(char('a')))(_.size)

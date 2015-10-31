@@ -6,7 +6,7 @@ trait MyParsers[ParseError, Parser[+_]] { self =>
   def char(c: Char): Parser[Char]
   def or[A](s1: Parser[A], s2: Parser[A]): Parser[A]
   implicit def string(s: String): Parser[String]
-  implicit def operators[A](p: Parser[A]) = ParserOps[A](p)
+  implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOps[String] = ParserOps(f(a))
   def listOfN[A](n: Int, p: Parser[A]): Parser[List[A]]
   def optCount[A](p: Parser[A]): Parser[Int]

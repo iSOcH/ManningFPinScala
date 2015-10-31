@@ -13,7 +13,7 @@ object ParserTypes {
       case _ => this
     }
     def uncommit: Result[A] = this match {
-      case Failure(e, true) => Failure(e, false)
+      case Failure(e, true) => Failure(e, committed = false)
       case _ => this
     }
     def addCommit(isCommitted: Boolean): Result[A] = this match {
@@ -38,7 +38,7 @@ object ParserImpl extends Parsers[Parser] {
   override def regex(r: Regex): Parser[String] = loc => {
     r.findPrefixOf(loc.cur) match {
       case Some(res) => Success(res, res.length)
-      case _ => Failure(ParseError(List(loc -> s"$r did not match")), false)
+      case _ => Failure(ParseError(List(loc -> s"$r did not match")), committed = false)
     }
   }
 
