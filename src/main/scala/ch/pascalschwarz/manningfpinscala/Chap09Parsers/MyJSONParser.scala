@@ -18,12 +18,12 @@ object MyJSONParser {
 
 
     object stringParsing {
-      val unicode:Parser[String] =  (string("\\u").slice ** regex("[0-9a-fA-F]{4}".r)) map (u => Character.toChars(Integer.parseInt(u._2, 16)).toString)
-      val escapedChar:Parser[String] = (char('\\').slice ** regex("."r)) map (_._2.charAt(1).toString)
-      val regularString:Parser[String] = regex("[^\"\\\\]*"r)
+      val unicode:Parser[String] = (string("\\u") *> regex("[0-9a-fA-F]{4}".r)) map (u => Character.toChars(Integer.parseInt(u, 16)).head.toString)
+      val escapedChar:Parser[String] = (char('\\') *> regex("."r)) map (_.substring(0,1))
+      val regularString:Parser[String] = regex("[^\"\\\\]+"r)
     }
     val jsonString: Parser[JString] = surround("\"", "\"") {
-      (stringParsing.unicode | stringParsing.escapedChar | stringParsing.regularString).many
+      (attempt(stringParsing.unicode) | stringParsing.escapedChar | stringParsing.regularString).many
     }.map(s => JString(s.mkString))
 
     def lit: Parser[JSON] = jsonNull | jsonBool | jsonNumber | jsonString
