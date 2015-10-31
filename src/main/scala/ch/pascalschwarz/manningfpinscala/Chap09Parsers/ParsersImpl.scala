@@ -32,7 +32,7 @@ object ParserTypes {
 object ParserImpl extends Parsers[Parser] {
   override def string(s: String): Parser[String] = loc => {
     if (loc.cur.startsWith(s)) Success(s, s.length)
-    else Failure(ParseError(List(loc -> s"$s not found")), loc.cur.startsWith(s.head.toString))
+    else Failure(ParseError(List(loc -> s"'$s' not found")), loc.cur.startsWith(s.head.toString))
   }
 
   override def regex(r: Regex): Parser[String] = loc => {
