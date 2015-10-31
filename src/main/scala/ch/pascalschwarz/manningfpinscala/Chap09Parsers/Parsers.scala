@@ -131,6 +131,7 @@ case class Location(input: String, offset: Int = 0) {
     case lineStart => offset - lineStart
   }
   def advanceBy(n: Int): Location = copy(offset = offset + n)
+  lazy val cur: String = input.substring(offset)
 }
 
 case class ParseError(stack: List[(Location, String)]) {

@@ -31,12 +31,12 @@ object ParserTypes {
 
 object ParserImpl extends Parsers[Parser] {
   override def string(s: String): Parser[String] = loc => {
-    if (loc.input.startsWith(s)) Success(s, s.length)
-    else Failure(ParseError(List(loc -> s"$s not found")), loc.input.startsWith(s.head.toString))
+    if (loc.cur.startsWith(s)) Success(s, s.length)
+    else Failure(ParseError(List(loc -> s"$s not found")), loc.cur.startsWith(s.head.toString))
   }
 
   override def regex(r: Regex): Parser[String] = loc => {
-    r.findFirstIn(loc.input) match {
+    r.findFirstIn(loc.cur) match {
       case Some(res) => Success(res, res.length)
       case _ => Failure(ParseError(List(loc -> s"$r did not match")), false)
     }
@@ -46,7 +46,7 @@ object ParserImpl extends Parsers[Parser] {
 
   override def slice[A](p: Parser[A]): Parser[String] = loc => {
     p(loc) match {
-      case Success(_, n) => Success(loc.input.take(n), n)
+      case Success(_, n) => Success(loc.cur.take(n), n)
       case f:Failure => f
     }
   }
