@@ -33,6 +33,9 @@ trait Parsers[Parser[+_]] { self =>
   def label[A](msg: String)(p: Parser[A]): Parser[A]
   def scope[A](msg: String)(p: Parser[A]): Parser[A]
 
+  val spaces = "\\s*".r.slice
+  def token[A](p: Parser[A]): Parser[A] = p.attempt <* spaces
+
   // ex 09_01
   def map2[A,B,C](p: Parser[A], p2: => Parser[B])(f: (A,B) => C): Parser[C] = (p ** p2).map(f.tupled)
   def many1[A](p: Parser[A]): Parser[List[A]] = map2(p, p.many)(_ :: _)
@@ -95,6 +98,7 @@ trait Parsers[Parser[+_]] { self =>
 
     def opt: Parser[Option[A]] = self.opt(p)
     def attempt: Parser[A] = self.attempt(p)
+    def token: Parser[A] = self.token(p)
 
     def *>[B](pr: Parser[B]): Parser[B] = self.skipL(p, pr)
     def <*(pr: Parser[_]): Parser[A] = self.skipR(p, pr)
