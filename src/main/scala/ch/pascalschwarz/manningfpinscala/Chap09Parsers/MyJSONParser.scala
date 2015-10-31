@@ -29,12 +29,14 @@ object MyJSONParser {
     def lit: Parser[JSON] = jsonNull | jsonBool | jsonNumber | jsonString
 
     def jsonArray: Parser[JArray] = surround("[", "]") {
-      lit.many(char(','))
+      value.many(char(','))
     }.map(l => JArray(l.to[IndexedSeq]))
 
     def jsonObject: Parser[JObject] = surround("{", "}") {
       ((jsonString <* char(':')) ** jsonParser(P)).many(char(','))
     }.map(_.map(e => e._1.get -> e._2)).map(l => JObject(l.toMap))
+
+    def value = lit | jsonArray
 
     jsonNull | jsonBool | jsonNumber | jsonString | jsonArray// | jsonObject
   }

@@ -76,8 +76,8 @@ trait Parsers[Parser[+_]] { self =>
   def errorMessage(e: ParseError): String
 
   case class ParserOps[A](p: Parser[A]) {
-    def |[B>:A](p2: Parser[B]) = self.or(p, p2)
-    def or[B>:A](p2: Parser[B]) = self.or(p, p2)
+    def |[B>:A](p2: => Parser[B]) = self.or(p, p2)
+    def or[B>:A](p2: => Parser[B]) = self.or(p, p2)
     def listOfN(n: Int): Parser[List[A]] = self.listOfN(n, p)
 
     def map[B](f: A => B) = self.map(p)(f)
