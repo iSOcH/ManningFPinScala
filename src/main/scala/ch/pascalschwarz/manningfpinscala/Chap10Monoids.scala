@@ -72,15 +72,18 @@ object MonoidLaws {
 
     val option = monoidLaws(MonoidInstances.optionMonoid[Int], Gen.toOption(intGen)) labelled "option"
 
-//    val fns = List(
-//      (x: Int, y: Int) => x + y,
-//      (x: Int, y: Int) => x - y,
-//      (x: Int, y: Int) => x * y,
-//      (x: Int, y: Int) => x / y//,
-//      //MonoidInstances.intAddition.op
-//    )
-//    val endo = monoidLaws(MonoidInstances.endoMonoid)
 
-    Prop.run(string && intAddition && intMultiplication && booleanOr && booleanAnd && option, 200, 200)
+    // endofunctions: equality on functions is not useful here, thats why the test fails
+    val fns: List[Int => Int] = List(
+      (x: Int) => x + 15,
+      (x: Int) => x - 13,
+      (x: Int) => x * 12,
+      (x: Int) => x / 11
+    )
+    val fnGens:List[Gen[Int => Int]] = fns.map(fn => Gen.unit(fn))
+    val fnGen:Gen[Int => Int] = fnGens.reduce(Gen.union[Int => Int])
+    val endo = monoidLaws(MonoidInstances.endoMonoid[Int], fnGen) labelled "endofunctions"
+
+    Prop.run(string && intAddition && intMultiplication && booleanOr && booleanAnd && option/* && endo*/, 200, 200)
   }
 }
