@@ -1,6 +1,7 @@
 package ch.pascalschwarz.manningfpinscala
 
 import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.SimpleRNG
+import ch.pascalschwarz.manningfpinscala.Monoid.{Part, Stub, WC}
 
 trait Monoid[A] {
   def op(a1: A, a2: A): A
@@ -79,6 +80,26 @@ object Monoid {
 
     foldMap(ints, m)(i => Some(i, i, true, None)).map(_._3).getOrElse(true)
   }
+
+  sealed trait WC
+  case class Stub(chars: String) extends WC
+  case class Part(lStub: String, words: Int, rStub: String) extends WC
+
+  // ex10_11
+  def wordCount(input: String): Int = {
+    // wc produces Stubs and Parts that never contain a whitespace
+    def wc(c: Char): WC = {
+      if (c.isWhitespace) Part("", 0, "")
+      else Stub(c.toString)
+    }
+
+    def unstub(s: String): Int = s.length min 1
+
+    foldMap(input.to[IndexedSeq], MonoidInstances.wcMonoid)(wc) match {
+      case Stub(s) => unstub(s)
+      case Part(l, c, r) => unstub(l) + c + unstub(r)
+    }
+  }
 }
 
 object MonoidInstances {
@@ -120,6 +141,19 @@ object MonoidInstances {
   def endoMonoid[A] = new Monoid[A => A] {
     def op(a1: A => A, a2: A => A): A => A = a1 andThen a2 // a2 andThen a1 also possible, dual Monoid
     val zero: A => A = identity
+  }
+
+  // ex10_10
+  val wcMonoid = new Monoid[WC] {
+    def op(a1: WC, a2: WC): WC = (a1, a2) match {
+      case (Stub(s1), Stub(s2)) => Stub(s1 + s2)
+      case (Stub(s1), Part(p1, c, p2)) => Part(s1 + p1, c, p2)
+      case (Part(p1, c, p2), Stub(s2)) => Part(p1, c, p2 + s2)
+      case (Part(p1, c1, p2), Part(p3, c2, p4)) =>
+        Part(p1, c1 + (if ((p2 + p3).isEmpty) 0 else 1) + c2, p4)
+    }
+
+    val zero: WC = Stub("")
   }
 }
 
