@@ -7,6 +7,39 @@ trait Monoid[A] {
   def zero: A
 }
 
+object Monoid {
+  def concatenate[A](as: List[A], m: Monoid[A]): A = as.foldLeft(m.zero)(m.op)
+
+  // ex 10_05
+  def foldMap[A,B](as: List[A], m: Monoid[B])(f: A => B): B = {
+    // iterates twice
+    //val mapped = as map f
+    //concatenate(mapped, m)
+
+    as.foldLeft(m.zero)((b: B, a: A) => m.op(b, f(a)))
+  }
+
+  // ex10_06
+  def foldLeftViaFoldMap[A, B](as: List[A])(z: B)(f: (B, A) => B): B = {
+    // endoMonoid[B]'s op is (B => B) => (B => B) => (B => B)
+    // we change the order of f's arguments so that f: A => B => B
+    // the a is supplied in foldMap which leaves B => B, endoMonoid[B].op
+    // can then be used to combine these into a single B => B - which is
+    // finally resolved to a single B by application to `z`
+    foldMap(as, MonoidInstances.endoMonoid[B])(a => b => f(b, a))(z)
+  }
+
+  // ex10_07
+  def foldMap[A,B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B = {
+    if (as.length == 0) m.zero
+    else if (as.length == 1) f(as.head)
+    else {
+      val (a1, a2) = as.splitAt(as.length / 2)
+      m.op(foldMap(a1, m)(f), foldMap(a2, m)(f))
+    }
+  }
+}
+
 object MonoidInstances {
   val stringMonoid = new Monoid[String] {
     def op(a1: String, a2: String) = a1 + a2
