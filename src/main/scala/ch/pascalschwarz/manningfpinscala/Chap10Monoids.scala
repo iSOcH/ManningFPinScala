@@ -38,6 +38,16 @@ object Monoid {
       m.op(foldMap(a1, m)(f), foldMap(a2, m)(f))
     }
   }
+
+  // ex10_08
+  import ch.pascalschwarz.manningfpinscala.Chap07FunctionalParallelism.NonBlocking.NonBlocking._
+  def par[A](m: Monoid[A]): Monoid[Par[A]] = new Monoid[Par[A]] {
+    def op(a1: Par[A], a2: Par[A]): Par[A] = Par.map2(a1, a2)(m.op)
+    val zero: Par[A] = Par.unit(m.zero)
+  }
+  def foldMapPar[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] = {
+    foldMap(v, par(m))(a => Par.lazyUnit(f(a)))
+  }
 }
 
 object MonoidInstances {
