@@ -48,6 +48,37 @@ object Monoid {
   def foldMapPar[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] = {
     foldMap(v, par(m))(a => Par.lazyUnit(f(a)))
   }
+
+  // ex10_09
+  // accepts ascending and descending sequences
+  def ordered(ints: IndexedSeq[Int]): Boolean = {
+    // min, max, isOrdered, isAscending
+    val m = new Monoid[Option[(Int, Int, Boolean, Option[Boolean])]] {
+      override def op(a1: Option[(Int, Int, Boolean, Option[Boolean])], a2: Option[(Int, Int, Boolean, Option[Boolean])]) = {
+        val dir1 = a1.flatMap(_._4)
+        val dir2 = a2.flatMap(_._4)
+        val dir = dir1.orElse(dir2)
+        val maybeSorted = if (dir1.isDefined && dir2.isDefined) dir1 == dir2 else true
+
+        (a1, a2) match {
+          case (Some((min1, max1, ordered1, _)), Some((min2, max2, ordered2, _))) if !maybeSorted =>
+            Some((min1 min min2, max1 max max2, false, None))
+          case (Some((min1, max1, ordered1, _)), Some((min2, max2, ordered2, _))) if dir.isDefined => {
+            val sorted = if (dir.get) max1 <= min2 else max2 <= min1
+            Some((min1 min min2, max1 max max2, ordered1 && ordered2 && sorted, dir))
+          }
+          case (Some((min1, max1, ordered1, _)), Some((min2, max2, ordered2, _))) =>
+            Some((min1 min min2, max1 max max2, ordered1 && ordered2 && (max1 <= min2 || min1 >= max2), if ((max1 == min2) || (min1 == max2)) None else Some(max1 < min2)))
+          case (x, None) => x
+          case (None, x) => x
+        }
+      }
+
+      val zero = None
+    }
+
+    foldMap(ints, m)(i => Some(i, i, true, None)).map(_._3).getOrElse(true)
+  }
 }
 
 object MonoidInstances {
