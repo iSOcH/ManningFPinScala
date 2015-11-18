@@ -1,5 +1,6 @@
 package ch.pascalschwarz.manningfpinscala
 
+import ch.pascalschwarz.manningfpinscala.Chap06FunctionalState.State
 import ch.pascalschwarz.manningfpinscala.Chap08Testing.Gen
 import ch.pascalschwarz.manningfpinscala.Chap07FunctionalParallelism.NonBlocking.NonBlocking.Par
 import ch.pascalschwarz.manningfpinscala.Chap09Parsers.Parsers
@@ -55,5 +56,15 @@ object MonadInstances {
   val list = new Monad[List] {
     override def unit[A](a: => A): List[A] = List(a)
     override def flatMap[A, B](ma: List[A])(f: (A) => List[B]): List[B] = ma flatMap f
+  }
+
+  // ex10_02 (solution from book)
+  // But we don't have to create a full class like `StateMonads`. We can create
+  // an anonymous class inline, inside parentheses, and project out its type member,
+  // `lambda`:
+  def state[S] = new Monad[({type lambda[x] = State[S, x]})#lambda] {
+    def unit[A](a: => A): State[S, A] = State(s => (a, s))
+    override def flatMap[A,B](st: State[S, A])(f: A => State[S, B]): State[S, B] =
+      st flatMap f
   }
 }
