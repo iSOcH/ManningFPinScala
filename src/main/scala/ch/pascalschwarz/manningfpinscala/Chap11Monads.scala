@@ -5,6 +5,8 @@ import ch.pascalschwarz.manningfpinscala.Chap08Testing.Gen
 import ch.pascalschwarz.manningfpinscala.Chap07FunctionalParallelism.NonBlocking.NonBlocking.Par
 import ch.pascalschwarz.manningfpinscala.Chap09Parsers.Parsers
 
+import scala.annotation.tailrec
+
 trait Functor[F[_]] {
   def map[A, B](fa: F[A])(f: A => B): F[B]
 
@@ -28,12 +30,30 @@ trait Monad[F[_]] extends Functor[F] {
   override def map[A, B](ma: F[A])(f: (A) => B): F[B] = flatMap(ma)(a => unit(f(a)))
 
   def map2[A,B,C](ma: F[A], mb: F[B])(f: (A,B) => C): F[C] = flatMap(ma)(a => map(mb)(b => f(a,b)))
+
+  // ex11_03
+  def sequence[A](lma: List[F[A]]): F[List[A]] = {
+    lma.foldRight(unit(List[A]())) ((ma, mla) => map2(ma, mla)(_ :: _))
+  }
+  def traverse[A,B](la: List[A])(f: A => F[B]): F[List[B]] = {
+    la.foldRight(unit(List[B]())) ((a, mlb) => map2(f(a), mlb)(_ :: _))
+  }
+
+  // ex11_04
+  def replicateM[A](n: Int, ma: F[A]): F[List[A]] = {
+    @tailrec
+    def loop(n: Int, acc: F[List[A]]): F[List[A]] = {
+      if (n == 0) acc
+      else loop(n-1, map2(ma, acc)(_ :: _))
+    }
+    loop(n, unit(List[A]()))
+  }
 }
 
 object MonadInstances {
   val gen = new Monad[Gen] {
     override def unit[A](a: => A): Gen[A] = Gen.unit(a)
-    override def flatMap[A, B](ma: Gen[A])(f: (A) => Gen[B]): Gen[B] = ma.flatMap(f)
+    override def flatMap[A, B](ma: Gen[A])(f: (A) => Gen[B]): Gen[B] = ma flatMap f
   }
 
   // ex11_01
