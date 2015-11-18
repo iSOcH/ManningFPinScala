@@ -97,6 +97,13 @@ object Monoid {
       case Part(l, c, r) => unstub(l) + c + unstub(r)
     }
   }
+
+  // ex10_18
+  def bag[A](as: IndexedSeq[A]): Map[A, Int] = {
+    import MonoidInstances.{mapMergeMonoid, intAddition}
+    val M = mapMergeMonoid[A,Int](intAddition)
+    foldMap(as, M)(v => Map(v -> 1))
+  }
 }
 
 object MonoidInstances {
@@ -108,6 +115,13 @@ object MonoidInstances {
   def listMonoid[A] = new Monoid[List[A]] {
     def op(l1: List[A], l2: List[A]) = l1 ++ l2
     val zero = Nil
+  }
+
+  def mapMergeMonoid[K,V](V: Monoid[V]) = new Monoid[Map[K,V]] {
+    val zero = Map[K,V]()
+    def op(a: Map[K, V], b: Map[K, V]) = (a.keySet ++ b.keySet).foldLeft(zero) { (acc, k) =>
+      acc.updated(k, V.op(a.getOrElse(k, V.zero), b.getOrElse(k, V.zero)))
+    }
   }
 
   // ex10_01
@@ -152,6 +166,18 @@ object MonoidInstances {
     }
 
     val zero: WC = Stub("")
+  }
+
+  // ex10_16
+  def productMonoid[A,B](A: Monoid[A], B: Monoid[B]) = new Monoid[(A, B)] {
+    val zero: (A, B) = (A.zero, B.zero)
+    def op(a1: (A, B), a2: (A, B)) = (A.op(a1._1, a2._1), B.op(a1._2, a2._2))
+  }
+
+  // ex10_17
+  def functionMonoid[A,B](B: Monoid[B]) = new Monoid[A=>B] {
+    val zero: (A) => B = _ => B.zero
+    def op(f1: (A) => B, f2: (A) => B): (A) => B = a => B.op(f1(a), f2(a))
   }
 }
 
@@ -201,8 +227,12 @@ trait Foldable[F[_]] {
   def foldLeft[A, B](as: F[A])(z: B)(f: (B, A) => B): B
   def foldMap[A, B](as: F[A])(f: A => B)(mb: Monoid[B]): B
   def concatenate[A](as: F[A])(m: Monoid[A]): A = foldLeft(as)(m.zero)(m.op)
+
+  // ex10_15
+  def toList[A](fa: F[A]): List[A] = foldRight(fa)(List[A]())(_ :: _)
 }
 
+// ex10_13
 object ListFoldable extends Foldable[List] {
   def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B = as.foldRight(z)(f)
   def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B = as.foldLeft(z)(f)
@@ -231,4 +261,11 @@ object TreeFoldable extends Foldable[Tree] {
     case Leaf(a) => f(a)
     case Branch(l, r) => mb.op(foldMap(l)(f)(mb), foldMap(r)(f)(mb))
   }
+}
+
+// ex10_14
+object OptionFoldable extends Foldable[Option] {
+  def foldRight[A, B](as: Option[A])(z: B)(f: (A, B) => B): B = as.map(a => f(a, z)).getOrElse(z)
+  def foldLeft[A, B](as: Option[A])(z: B)(f: (B, A) => B): B = as.map(a => f(z, a)).getOrElse(z)
+  def foldMap[A, B](as: Option[A])(f: (A) => B)(mb: Monoid[B]): B = as.map(f).getOrElse(mb.zero)
 }
